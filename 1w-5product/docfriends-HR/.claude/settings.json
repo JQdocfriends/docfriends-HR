@@ -1,0 +1,13 @@
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "teammateMode": "tmux",
+  "enabledPlugins": {
+    "oh-my-claudecode@omc": true
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "node /Users/younggyulee/.claude/hud/omc-hud.mjs"
+  }
+}

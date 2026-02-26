@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "figma-console": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "figma-console-mcp",
+        "--mode",
+        "local"
+      ],
+      "env": {}
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "playwright-mcp"
+      ],
+      "env": {}
+    }
+  }
+}
