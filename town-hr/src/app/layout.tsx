@@ -3,7 +3,7 @@ import localFont from "next/font/local";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/auth-context";
-import { CompanyProvider } from "@/contexts/company-context";
+
 import "./globals.css";
 
 const pretendard = localFont({
@@ -43,12 +43,10 @@ export default function RootLayout({
     <html lang="ko">
       <body className={`${pretendard.variable} font-sans antialiased`}>
         <AuthProvider>
-          <CompanyProvider>
-            <TooltipProvider>
-              {children}
-              <Toaster position="bottom-right" />
-            </TooltipProvider>
-          </CompanyProvider>
+          <TooltipProvider>
+            {children}
+            <Toaster position="bottom-right" />
+          </TooltipProvider>
         </AuthProvider>
       </body>
     </html>

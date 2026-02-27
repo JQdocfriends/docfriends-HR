@@ -2,18 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useAuthContext } from "@/contexts/auth-context";
-import { useCompany } from "@/contexts/company-context";
+import { CompanyProvider, useCompany } from "@/contexts/company-context";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppHeader } from "@/components/layout/app-header";
 import { IdleTimeoutDialog } from "@/components/auth/idle-timeout-dialog";
 import { signOut } from "@/lib/firebase/auth";
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuthContext();
   const { company, loading: companyLoading } = useCompany();
   const router = useRouter();
@@ -47,5 +43,17 @@ export default function DashboardLayout({
       </SidebarInset>
       <IdleTimeoutDialog onLogout={signOut} />
     </SidebarProvider>
+  );
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <CompanyProvider>
+      <DashboardLayoutInner>{children}</DashboardLayoutInner>
+    </CompanyProvider>
   );
 }

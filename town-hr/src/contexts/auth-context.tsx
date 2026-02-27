@@ -45,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Auto-fetch member document on session restore
       if (!member) {
         try {
+          await firebaseUser.getIdToken();
           const memberDoc = await getDoc(
             doc(db, "members", firebaseUser.uid)
           );

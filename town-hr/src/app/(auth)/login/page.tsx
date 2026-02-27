@@ -30,6 +30,9 @@ function LoginForm() {
     try {
       const firebaseUser = await signInWithGoogle();
 
+      // Ensure Firestore has the auth token before reading
+      await firebaseUser.getIdToken(true);
+
       // Look up member document by uid
       const memberDoc = await getDoc(doc(db, "members", firebaseUser.uid));
 
