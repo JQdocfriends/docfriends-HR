@@ -23,6 +23,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { UserMenu } from "./user-menu";
 import type { MemberRole } from "@/types";
@@ -93,13 +94,18 @@ export function AppSidebar() {
   }
 
   return (
-    <Sidebar>
-      <SidebarHeader className="border-b border-sidebar-border px-4">
-        <div className="flex h-14 items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-            T
+    <Sidebar collapsible="icon">
+      <SidebarHeader className="border-b border-sidebar-border px-2 group-data-[collapsible=icon]:px-0">
+        <div className="flex h-14 items-center gap-2 group-data-[collapsible=icon]:justify-center">
+          <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
+              T
+            </div>
+            <span className="text-lg font-semibold">타운</span>
           </div>
-          <span className="text-lg font-semibold">타운</span>
+          <div className="ml-auto group-data-[collapsible=icon]:ml-0">
+            <SidebarTrigger className="size-8" />
+          </div>
         </div>
       </SidebarHeader>
 

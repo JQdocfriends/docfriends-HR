@@ -1,8 +1,6 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Separator } from "@/components/ui/separator";
 import { NotificationBell } from "./notification-bell";
 
 const BREADCRUMB_MAP: Record<string, string> = {
@@ -28,8 +26,6 @@ export function AppHeader() {
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background px-6">
-      <SidebarTrigger className="-ml-2" />
-      <Separator orientation="vertical" className="mx-2 h-4" />
       <nav className="flex flex-1 items-center gap-1.5 text-sm">
         {segments.map((segment, index) => {
           const label = BREADCRUMB_MAP[segment] || segment;
