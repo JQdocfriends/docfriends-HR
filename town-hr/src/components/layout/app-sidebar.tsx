@@ -42,12 +42,12 @@ const mainNavItems: NavItem[] = [
     icon: LayoutDashboard,
   },
   {
-    title: "구성원 관리",
+    title: "구성원",
     href: "/members",
     icon: Users,
   },
   {
-    title: "근태 관리",
+    title: "근무",
     href: "/attendance",
     icon: Clock,
   },
@@ -65,7 +65,7 @@ const mainNavItems: NavItem[] = [
 
 const adminNavItems: NavItem[] = [
   {
-    title: "조직 관리",
+    title: "조직",
     href: "/organization",
     icon: Building2,
     roles: ["admin", "manager"],

@@ -12,7 +12,7 @@ import type { NextRequest } from "next/server";
  * This middleware provides a lightweight check for the session cookie.
  */
 
-const PUBLIC_PATHS = ["/login", "/api/auth", "/forbidden"];
+const PUBLIC_PATHS = ["/login", "/api/auth", "/api/invitations/verify", "/api/invitations/accept", "/join", "/forbidden"];
 
 const ADMIN_ONLY_PATHS = [
   "/settings",

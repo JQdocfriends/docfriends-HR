@@ -108,16 +108,16 @@ export default function MembersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">구성원 관리</h1>
+          <h1 className="text-2xl font-bold tracking-tight">구성원</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             전체 {members.length}명의 구성원을 관리합니다
           </p>
         </div>
         {canManage && (
           <Button asChild>
-            <Link href="/members/new">
+            <Link href="/members/invite">
               <Plus className="mr-2 h-4 w-4" />
-              구성원 등록
+              구성원 초대
             </Link>
           </Button>
         )}

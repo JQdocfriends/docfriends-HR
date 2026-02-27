@@ -25,6 +25,11 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == memberId;
     }
 
+    function onlyPersonalFields() {
+      let allowed = ['name', 'phone', 'birthDate', 'profileImageUrl', 'updatedAt'].toSet();
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowed);
+    }
+
     // Company settings (singleton)
     match /company/settings {
       allow read: if isAuthenticated();
@@ -35,7 +40,7 @@ service cloud.firestore {
     match /members/{memberId} {
       allow read: if isAuthenticated();
       allow create: if isAdmin();
-      allow update: if isAdminOrManager();
+      allow update: if isAdminOrManager() || (isSelf(memberId) && onlyPersonalFields());
       allow delete: if isAdmin();
     }
 
@@ -156,6 +161,12 @@ service cloud.firestore {
     match /onboarding_checklists/{checklistId} {
       allow read: if isAuthenticated();
       allow write: if isAdminOrManager();
+    }
+
+    // Invitations (reads by admin/manager only, writes via Admin SDK API routes)
+    match /invitations/{invitationId} {
+      allow read: if isAdminOrManager();
+      allow write: if false;
     }
   }
 }

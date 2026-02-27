@@ -23,3 +23,4 @@ export const workflowDocumentsRef = collection(db, "workflow_documents");
 export const notificationsRef = collection(db, "notifications");
 export const auditLogsRef = collection(db, "audit_logs");
 export const onboardingChecklistsRef = collection(db, "onboarding_checklists");
+export const invitationsRef = collection(db, "invitations");

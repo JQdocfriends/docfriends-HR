@@ -3,13 +3,29 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Trash2, Users } from "lucide-react";
+import {
+  ArrowLeft,
+  Plus,
+  Trash2,
+  Mail,
+  RotateCw,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
-import { createMember } from "@/hooks/use-members";
 import { useDepartments } from "@/hooks/use-departments";
 import { useAuthContext } from "@/contexts/auth-context";
+import {
+  useInvitations,
+  cancelInvitation,
+  resendInvitation,
+} from "@/hooks/use-invitations";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +37,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import type { MemberRole } from "@/types";
 
 interface InviteRow {
@@ -51,6 +75,8 @@ export default function MemberInvitePage() {
   const router = useRouter();
   const { role: currentUserRole } = useAuthContext();
   const { departments } = useDepartments();
+  const { invitations, loading: invitationsLoading, mutate } =
+    useInvitations("pending");
 
   const [inputMode, setInputMode] = useState<InputMode>("rows");
   const [textareaValue, setTextareaValue] = useState("");
@@ -72,7 +98,9 @@ export default function MemberInvitePage() {
   }
 
   function removeRow(id: string) {
-    setRows((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== id) : prev));
+    setRows((prev) =>
+      prev.length > 1 ? prev.filter((r) => r.id !== id) : prev
+    );
   }
 
   function updateRow(id: string, field: keyof InviteRow, value: string) {
@@ -119,44 +147,72 @@ export default function MemberInvitePage() {
     setProcessing(true);
     setResults(null);
 
-    let success = 0;
-    let failed = 0;
-    const errors: string[] = [];
+    try {
+      const res = await fetch("/api/invitations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invitations: invites }),
+      });
 
-    for (const invite of invites) {
-      try {
-        const nameFromEmail = invite.email.split("@")[0];
-        await createMember({
-          uid: "",
-          email: invite.email,
-          name: nameFromEmail,
-          phone: null,
-          birthDate: null,
-          profileImageUrl: null,
-          departmentId: invite.departmentId || null,
-          teamId: null,
-          positionId: null,
-          jobTitle: null,
-          role: invite.role,
-          status: "active",
-          hireDate: new Date().toISOString().split("T")[0],
-          resignDate: null,
-          workType: "fixed",
-        });
-        success++;
-      } catch (err) {
-        failed++;
-        errors.push(`${invite.email}: ${err instanceof Error ? err.message : "알 수 없는 오류"}`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.error || "초대 처리에 실패했습니다");
+        setProcessing(false);
+        return;
       }
+
+      const errors = data.results
+        .filter((r: { success: boolean }) => !r.success)
+        .map(
+          (r: { email: string; error?: string }) =>
+            `${r.email}: ${r.error || "알 수 없는 오류"}`
+        );
+
+      setResults({
+        success: data.successCount,
+        failed: data.failedCount,
+        errors,
+      });
+
+      if (data.failedCount === 0) {
+        toast.success(`${data.successCount}명에게 초대 이메일을 발송했습니다`);
+      } else {
+        toast.error(
+          `${data.successCount}명 성공, ${data.failedCount}명 실패`
+        );
+      }
+
+      // Refresh pending invitations list
+      mutate();
+    } catch {
+      toast.error("초대 처리 중 오류가 발생했습니다");
+    } finally {
+      setProcessing(false);
     }
+  }
 
-    setResults({ success, failed, errors });
-    setProcessing(false);
+  async function handleCancel(id: string) {
+    try {
+      await cancelInvitation(id);
+      toast.success("초대가 취소되었습니다");
+      mutate();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "초대 취소에 실패했습니다"
+      );
+    }
+  }
 
-    if (failed === 0) {
-      toast.success(`${success}명 초대 완료`);
-    } else {
-      toast.error(`${success}명 성공, ${failed}명 실패`);
+  async function handleResend(id: string) {
+    try {
+      await resendInvitation(id);
+      toast.success("초대 이메일을 재발송했습니다");
+      mutate();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "재발송에 실패했습니다"
+      );
     }
   }
 
@@ -290,7 +346,7 @@ export default function MemberInvitePage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            {rows.map((row, idx) => (
+            {rows.map((row) => (
               <div
                 key={row.id}
                 className="flex items-end gap-3 rounded-md border p-3"
@@ -363,7 +419,7 @@ export default function MemberInvitePage() {
         <Card>
           <CardContent className="flex items-center gap-3 py-6">
             <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            <p className="text-sm">초대를 처리하고 있습니다...</p>
+            <p className="text-sm">초대 이메일을 발송하고 있습니다...</p>
           </CardContent>
         </Card>
       )}
@@ -394,9 +450,13 @@ export default function MemberInvitePage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => router.push("/members")}
+              onClick={() => {
+                setResults(null);
+                setRows([createEmptyRow()]);
+                setTextareaValue("");
+              }}
             >
-              구성원 목록으로
+              새 초대하기
             </Button>
           </CardContent>
         </Card>
@@ -412,13 +472,111 @@ export default function MemberInvitePage() {
             onClick={handleInvite}
             disabled={processing || inviteCount === 0}
           >
-            <Users className="mr-1 h-4 w-4" />
+            <Mail className="mr-1 h-4 w-4" />
             {processing
-              ? "처리중..."
-              : `초대하기 (${inviteCount}명)`}
+              ? "발송 중..."
+              : `초대 이메일 발송 (${inviteCount}명)`}
           </Button>
         </div>
       )}
+
+      {/* Pending invitations section */}
+      <Separator />
+
+      <div className="space-y-4">
+        <h2 className="text-base font-semibold">보류 중인 초대</h2>
+
+        {invitationsLoading ? (
+          <Card>
+            <CardContent className="flex items-center gap-3 py-6">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              <p className="text-sm text-muted-foreground">로딩 중...</p>
+            </CardContent>
+          </Card>
+        ) : invitations.length === 0 ? (
+          <Card>
+            <CardContent className="py-6 text-center text-sm text-muted-foreground">
+              보류 중인 초대가 없습니다
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>이메일</TableHead>
+                  <TableHead>권한</TableHead>
+                  <TableHead>초대일</TableHead>
+                  <TableHead>만료일</TableHead>
+                  <TableHead className="text-right">작업</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {invitations.map((inv) => {
+                  const roleLabel =
+                    ROLE_OPTIONS.find((o) => o.value === inv.role)?.label ??
+                    inv.role;
+                  const createdAt = inv.createdAt
+                    ? new Date(inv.createdAt).toLocaleDateString("ko-KR")
+                    : "-";
+                  const expiresAt = inv.expiresAt
+                    ? new Date(inv.expiresAt).toLocaleDateString("ko-KR")
+                    : "-";
+                  const isExpired = inv.expiresAt
+                    ? new Date(inv.expiresAt) < new Date()
+                    : false;
+
+                  return (
+                    <TableRow key={inv.id}>
+                      <TableCell className="font-medium">
+                        {inv.email}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{roleLabel}</Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {createdAt}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={
+                            isExpired
+                              ? "text-destructive"
+                              : "text-muted-foreground"
+                          }
+                        >
+                          {expiresAt}
+                          {isExpired && " (만료)"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleResend(inv.id)}
+                            title="재발송"
+                          >
+                            <RotateCw className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleCancel(inv.id)}
+                            title="취소"
+                          >
+                            <X className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

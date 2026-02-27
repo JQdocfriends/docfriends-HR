@@ -11,6 +11,8 @@ import {
   PenTool,
   AlertTriangle,
   Info,
+  Mail,
+  UserCheck,
   CheckCheck,
   Trash2,
 } from "lucide-react";
@@ -38,6 +40,8 @@ const ICON_BY_TYPE: Record<NotificationType, React.ComponentType<{ className?: s
   contract_sent: Send,
   contract_signed: PenTool,
   overtime_warning: AlertTriangle,
+  invitation_sent: Mail,
+  invitation_accepted: UserCheck,
   system: Info,
 };
 

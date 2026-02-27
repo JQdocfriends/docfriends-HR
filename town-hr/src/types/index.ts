@@ -58,6 +58,8 @@ export type NotificationType =
   | "contract_sent"
   | "contract_signed"
   | "overtime_warning"
+  | "invitation_sent"
+  | "invitation_accepted"
   | "system";
 
 export type AuditAction =
@@ -74,6 +76,8 @@ export type PositionCategory = "rank" | "job";
 export type SealType = "company" | "representative";
 
 export type OnboardingPhase = "day1" | "week1" | "month1" | "month3";
+
+export type InvitationStatus = "pending" | "accepted" | "expired" | "cancelled";
 
 // ---- Company (Singleton at company/settings) ----
 
@@ -438,6 +442,24 @@ export interface OnboardingChecklist {
   items: OnboardingChecklistItem[];
   status: "in_progress" | "completed";
   completedAt: Timestamp | null;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+// ---- Invitations ----
+
+export interface Invitation {
+  id: string;
+  token: string;
+  email: string;
+  role: MemberRole;
+  departmentId: string | null;
+  invitedBy: string;
+  invitedByName: string;
+  status: InvitationStatus;
+  acceptedBy: string | null;
+  acceptedAt: Timestamp | null;
+  expiresAt: Timestamp;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

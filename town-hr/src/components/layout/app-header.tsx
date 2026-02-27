@@ -5,11 +5,11 @@ import { NotificationBell } from "./notification-bell";
 
 const BREADCRUMB_MAP: Record<string, string> = {
   dashboard: "대시보드",
-  members: "구성원 관리",
-  attendance: "근태 관리",
+  members: "구성원",
+  attendance: "근무",
   contracts: "전자계약",
   workflows: "전자결재",
-  organization: "조직 관리",
+  organization: "조직",
   settings: "설정",
   profile: "내 프로필",
   new: "등록",

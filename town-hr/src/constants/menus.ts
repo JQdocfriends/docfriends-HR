@@ -53,7 +53,7 @@ export const SIDEBAR_MENUS: MenuItem[] = [
     ],
   },
   {
-    title: "조직 관리",
+    title: "조직",
     href: "/organization",
     icon: Building2,
     roles: ["admin", "manager", "employee"],
@@ -85,7 +85,7 @@ export const SIDEBAR_MENUS: MenuItem[] = [
     ],
   },
   {
-    title: "근태 관리",
+    title: "근무",
     href: "/attendance",
     icon: Clock,
     roles: ["admin", "manager", "employee"],
