@@ -1,0 +1,161 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/members/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isManager() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/members/$(request.auth.uid)).data.role == 'manager';
+    }
+
+    function isAdminOrManager() {
+      return isAdmin() || isManager();
+    }
+
+    function isSelf(memberId) {
+      return isAuthenticated() && request.auth.uid == memberId;
+    }
+
+    // Company settings (singleton)
+    match /company/settings {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Members
+    match /members/{memberId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdminOrManager();
+      allow delete: if isAdmin();
+    }
+
+    // Departments
+    match /departments/{deptId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Teams
+    match /teams/{teamId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Positions
+    match /positions/{posId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Attendance Records
+    match /attendance_records/{recordId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAdminOrManager() ||
+        (isAuthenticated() && resource.data.memberId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // Attendance Weekly Summaries
+    match /attendance_weekly_summaries/{summaryId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdminOrManager();
+    }
+
+    // Leave Policies
+    match /leave_policies/{policyId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Leave Balances
+    match /leave_balances/{balanceId} {
+      allow read: if isAuthenticated() &&
+        (isAdminOrManager() || resource.data.memberId == request.auth.uid);
+      allow write: if isAdminOrManager();
+    }
+
+    // Leave Requests
+    match /leave_requests/{requestId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAdminOrManager() ||
+        (isAuthenticated() && resource.data.memberId == request.auth.uid && resource.data.status == 'pending');
+      allow delete: if isAdmin();
+    }
+
+    // Contract Templates
+    match /contract_templates/{templateId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdminOrManager();
+    }
+
+    // Contracts
+    match /contracts/{contractId} {
+      allow read: if isAuthenticated() &&
+        (isAdminOrManager() || resource.data.recipientId == request.auth.uid || resource.data.senderId == request.auth.uid);
+      allow create: if isAdminOrManager();
+      allow update: if isAdminOrManager() ||
+        (isAuthenticated() && resource.data.recipientId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // Company Seals
+    match /company_seals/{sealId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Workflow Forms
+    match /workflow_forms/{formId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Workflow Policies
+    match /workflow_policies/{policyId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Workflow Documents
+    match /workflow_documents/{docId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAdminOrManager() ||
+        (isAuthenticated() && resource.data.submittedBy == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // Notifications
+    match /notifications/{notifId} {
+      allow read: if isAuthenticated() && resource.data.recipientId == request.auth.uid;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && resource.data.recipientId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.recipientId == request.auth.uid;
+    }
+
+    // Audit Logs
+    match /audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+
+    // Onboarding Checklists
+    match /onboarding_checklists/{checklistId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdminOrManager();
+    }
+  }
+}
