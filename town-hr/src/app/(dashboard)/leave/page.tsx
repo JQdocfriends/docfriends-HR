@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useAuthContext } from "@/contexts/auth-context";
 import { useLeaveRequests, useLeaveBalances, useLeavePolicies, approveLeaveRequest, rejectLeaveRequest } from "@/hooks/use-leave";
 import { useMembers } from "@/hooks/use-members";
@@ -40,6 +40,10 @@ export default function LeavePage() {
     return policies.find((p) => p.id === policyId)?.name ?? "-";
   }
 
+  function getPolicy(policyId: string) {
+    return policies.find((p) => p.id === policyId);
+  }
+
   function getMemberName(memberId: string) {
     return members.find((m) => m.id === memberId)?.name ?? "-";
   }
@@ -69,17 +73,9 @@ export default function LeavePage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/attendance">
-              <ArrowLeft className="mr-1 h-4 w-4" />
-              뒤로
-            </Link>
-          </Button>
-          <h1 className="text-2xl font-bold tracking-tight">휴가 관리</h1>
-        </div>
+        <h1 className="text-2xl font-bold tracking-tight">휴가 관리</h1>
         <Button asChild>
-          <Link href="/attendance/leave/request">
+          <Link href="/leave/request">
             <Plus className="mr-1 h-4 w-4" />
             휴가 신청
           </Link>
@@ -111,17 +107,34 @@ export default function LeavePage() {
                   <div className="text-xs text-muted-foreground">
                     {getPolicyName(balance.policyId)}
                   </div>
-                  <div className="mt-1 flex items-baseline gap-2">
-                    <span className="text-2xl font-bold text-primary">
-                      {balance.remaining}
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      / {balance.granted}일
-                    </span>
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    사용 {balance.used}일 | 대기 {balance.pending}일
-                  </div>
+                  {(() => {
+                    const policy = getPolicy(balance.policyId);
+                    const unitLabel = policy?.unit === "hours" ? "시간" : "일";
+                    if (policy?.grantType === "per_request") {
+                      return (
+                        <div className="mt-1 text-sm text-muted-foreground">
+                          {policy.grantDays
+                            ? `신청 시 ${policy.grantDays}${unitLabel} 부여`
+                            : "건별 부여"}
+                        </div>
+                      );
+                    }
+                    return (
+                      <>
+                        <div className="mt-1 flex items-baseline gap-2">
+                          <span className="text-2xl font-bold text-primary">
+                            {balance.remaining}
+                          </span>
+                          <span className="text-sm text-muted-foreground">
+                            / {balance.granted}{unitLabel}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          사용 {balance.used}{unitLabel} | 대기 {balance.pending}{unitLabel}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </CardContent>
               </Card>
             ))}
@@ -172,7 +185,13 @@ export default function LeavePage() {
                           ? req.startDate
                           : `${req.startDate} ~ ${req.endDate}`}
                       </TableCell>
-                      <TableCell>{req.days}일</TableCell>
+                      <TableCell>
+                        {(() => {
+                          const policy = getPolicy(req.policyId);
+                          const unitLabel = policy?.unit === "hours" ? "시간" : "일";
+                          return `${req.days}${unitLabel}`;
+                        })()}
+                      </TableCell>
                       <TableCell className="max-w-[200px] truncate text-muted-foreground">
                         {req.reason}
                       </TableCell>

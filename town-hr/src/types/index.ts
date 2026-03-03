@@ -18,7 +18,19 @@ export type AttendanceStatus =
   | "on_leave"
   | "holiday";
 
-export type LeaveType = "annual" | "sick" | "menstrual" | "parental" | "special";
+export type LeaveType =
+  | "annual"          // 연차
+  | "family_care"     // 가족돌봄
+  | "military"        // 군소집훈련
+  | "infertility"     // 난임 치료
+  | "spouse_birth"    // 배우자출산
+  | "marriage_self"   // 결혼 - 본인
+  | "marriage_child"  // 결혼 - 자녀
+  | "condolence_spouse"       // 조의 - 배우자
+  | "condolence_parents"      // 조의 - 부모/자녀
+  | "condolence_grandparents" // 조의 - 조부모/형제/자매
+  | "first_snow"      // 첫눈 휴가
+  | "health_checkup"; // 건강검진 휴가
 export type LeaveRequestStatus = "pending" | "approved" | "rejected" | "cancelled";
 
 export type ContractStatus =
@@ -212,6 +224,9 @@ export interface LeavePolicy {
   name: string;
   type: LeaveType;
   annualDays: number | null;
+  grantType: "annual" | "per_request";
+  grantDays: number | null;
+  unit: "days" | "hours";
   isPaid: boolean;
   requiresApproval: boolean;
   autoApprove: boolean;

@@ -83,3 +83,56 @@ export async function clockOut(
     throw new Error(data.error || "Failed to clock out");
   }
 }
+
+export async function createAttendanceRecord(
+  memberId: string,
+  date: string,
+  checkInMinutes: number,
+  checkOutMinutes: number
+): Promise<void> {
+  const res = await fetch("/api/attendance/record", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ memberId, date, checkInMinutes, checkOutMinutes }),
+  });
+
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || "Failed to create attendance record");
+  }
+}
+
+export async function updateAttendanceRecord(
+  recordId: string,
+  memberId: string,
+  date: string,
+  checkInMinutes: number,
+  checkOutMinutes: number
+): Promise<void> {
+  const res = await fetch("/api/attendance/record", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ recordId, memberId, date, checkInMinutes, checkOutMinutes }),
+  });
+
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || "Failed to update attendance record");
+  }
+}
+
+export async function deleteAttendanceRecord(
+  recordId: string,
+  memberId: string
+): Promise<void> {
+  const res = await fetch("/api/attendance/record", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ recordId, memberId }),
+  });
+
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || "Failed to delete attendance record");
+  }
+}

@@ -3,6 +3,7 @@ import {
   Users,
   Building2,
   Clock,
+  CalendarDays,
   FileText,
   GitPullRequestArrow,
   Bell,
@@ -109,12 +110,6 @@ export const SIDEBAR_MENUS: MenuItem[] = [
         roles: ["admin", "manager", "employee"],
       },
       {
-        title: "휴가 관리",
-        href: "/attendance/leave",
-        icon: Clock,
-        roles: ["admin", "manager", "employee"],
-      },
-      {
         title: "초과근무 모니터링",
         href: "/attendance/overtime",
         icon: Clock,
@@ -126,6 +121,17 @@ export const SIDEBAR_MENUS: MenuItem[] = [
         icon: Clock,
         roles: ["admin", "manager"],
       },
+    ],
+  },
+  {
+    title: "휴가",
+    href: "/leave",
+    icon: CalendarDays,
+    roles: ["admin", "manager", "employee"],
+    children: [
+      { title: "휴가 관리", href: "/leave", icon: CalendarDays, roles: ["admin", "manager", "employee"] },
+      { title: "휴가 신청", href: "/leave/request", icon: CalendarDays, roles: ["admin", "manager", "employee"] },
+      { title: "휴가 내역", href: "/leave/history", icon: CalendarDays, roles: ["admin", "manager", "employee"] },
     ],
   },
   {

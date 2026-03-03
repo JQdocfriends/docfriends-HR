@@ -53,6 +53,21 @@ function randInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+const DEFAULT_LEAVE_POLICIES = [
+  { name: "연차휴가", type: "annual", grantType: "annual", annualDays: 15, grantDays: null, unit: "days", isPaid: true, requiresApproval: true, autoApprove: false, minNoticeDays: 3, description: "근로기준법 제60조에 의한 연차유급휴가", isActive: true },
+  { name: "가족돌봄", type: "family_care", grantType: "per_request", annualDays: null, grantDays: 1, unit: "days", isPaid: false, requiresApproval: true, autoApprove: false, minNoticeDays: 0, description: "가족의 질병·사고·노령으로 인한 돌봄 휴가", isActive: true },
+  { name: "군소집훈련", type: "military", grantType: "per_request", annualDays: null, grantDays: null, unit: "days", isPaid: true, requiresApproval: true, autoApprove: false, minNoticeDays: 7, description: "예비군/민방위 훈련 휴가", isActive: true },
+  { name: "난임 치료", type: "infertility", grantType: "annual", annualDays: 3, grantDays: null, unit: "days", isPaid: true, requiresApproval: true, autoApprove: false, minNoticeDays: 3, description: "난임 치료를 위한 휴가 (연 3일)", isActive: true },
+  { name: "배우자출산", type: "spouse_birth", grantType: "per_request", annualDays: null, grantDays: 10, unit: "days", isPaid: true, requiresApproval: true, autoApprove: false, minNoticeDays: 0, description: "배우자 출산 시 부여되는 휴가", isActive: true },
+  { name: "결혼 - 본인", type: "marriage_self", grantType: "per_request", annualDays: null, grantDays: 5, unit: "days", isPaid: true, requiresApproval: true, autoApprove: false, minNoticeDays: 7, description: "본인 결혼 경조사 휴가", isActive: true },
+  { name: "결혼 - 자녀", type: "marriage_child", grantType: "per_request", annualDays: null, grantDays: 1, unit: "days", isPaid: true, requiresApproval: true, autoApprove: false, minNoticeDays: 3, description: "자녀 결혼 경조사 휴가", isActive: true },
+  { name: "조의 - 배우자", type: "condolence_spouse", grantType: "per_request", annualDays: null, grantDays: 5, unit: "days", isPaid: true, requiresApproval: true, autoApprove: false, minNoticeDays: 0, description: "배우자 사망 시 경조사 휴가", isActive: true },
+  { name: "조의 - 부모/자녀", type: "condolence_parents", grantType: "per_request", annualDays: null, grantDays: 3, unit: "days", isPaid: true, requiresApproval: true, autoApprove: false, minNoticeDays: 0, description: "부모 또는 자녀 사망 시 경조사 휴가", isActive: true },
+  { name: "조의 - 조부모/형제/자매", type: "condolence_grandparents", grantType: "per_request", annualDays: null, grantDays: 2, unit: "days", isPaid: true, requiresApproval: true, autoApprove: false, minNoticeDays: 0, description: "조부모, 형제, 자매 사망 시 경조사 휴가", isActive: true },
+  { name: "첫눈 휴가", type: "first_snow", grantType: "per_request", annualDays: null, grantDays: 4, unit: "hours", isPaid: true, requiresApproval: true, autoApprove: false, minNoticeDays: 0, description: "첫눈 오는 날 조기 퇴근", isActive: true },
+  { name: "건강검진 휴가", type: "health_checkup", grantType: "per_request", annualDays: null, grantDays: 4, unit: "hours", isPaid: true, requiresApproval: true, autoApprove: false, minNoticeDays: 1, description: "건강검진을 위한 휴가", isActive: true },
+];
+
 interface DailyRecord {
   date: string;
   checkInTime: Timestamp;
@@ -232,18 +247,29 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 3. Fetch leave policies
+    // 3. Seed default leave policies if none exist
+    const existingPolicies = await db.collection("leave_policies").get();
+    if (existingPolicies.empty) {
+      const policyBatch = db.batch();
+      for (const policy of DEFAULT_LEAVE_POLICIES) {
+        const ref = db.collection("leave_policies").doc();
+        policyBatch.set(ref, { ...policy, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+      }
+      await policyBatch.commit();
+    }
+
+    // 4. Fetch leave policies
     const leavePoliciesSnap = await db.collection("leave_policies").get();
     let annualPolicyId: string | null = null;
-    let sickPolicyId: string | null = null;
+    let familyCarePolicyId: string | null = null;
 
     for (const doc of leavePoliciesSnap.docs) {
       const data = doc.data();
       if (data.type === "annual" && !annualPolicyId) annualPolicyId = doc.id;
-      if (data.type === "sick" && !sickPolicyId) sickPolicyId = doc.id;
+      if (data.type === "family_care" && !familyCarePolicyId) familyCarePolicyId = doc.id;
     }
 
-    const hasLeavePolicies = annualPolicyId !== null && sickPolicyId !== null;
+    const hasLeavePolicies = annualPolicyId !== null;
 
     // 4. Build attendance data
     const weekdays = getWeekdaysBetween("2026-01-06", "2026-02-28");
@@ -344,11 +370,11 @@ export async function POST(request: NextRequest) {
           createdAt: Timestamp.fromDate(new Date("2026-02-10T09:00:00Z")),
         },
         {
-          policyId: sickPolicyId!,
+          policyId: annualPolicyId!,
           startDate: "2026-02-05",
           endDate: "2026-02-05",
           days: 1,
-          reason: "병원 방문",
+          reason: "개인 사유 (건강검진)",
           status: "approved" as const,
           approverId: uid,
           approverComment: null,
@@ -420,21 +446,23 @@ export async function POST(request: NextRequest) {
         updatedAt: now,
       });
 
-      const sickBalanceRef = db.collection("leave_balances").doc();
-      batch.set(sickBalanceRef, {
-        memberId: uid,
-        year: 2026,
-        policyId: sickPolicyId!,
-        granted: 30,
-        used: 1,
-        pending: 0,
-        remaining: 29,
-        grantedAt: jan1_2026,
-        grantReason: "2026년 연차 부여",
-        expiresAt: dec31_2026,
-        createdAt: now,
-        updatedAt: now,
-      });
+      if (familyCarePolicyId) {
+        const familyCareBalanceRef = db.collection("leave_balances").doc();
+        batch.set(familyCareBalanceRef, {
+          memberId: uid,
+          year: 2026,
+          policyId: familyCarePolicyId,
+          granted: 10,
+          used: 1,
+          pending: 0,
+          remaining: 9,
+          grantedAt: jan1_2026,
+          grantReason: "2026년 가족돌봄 부여",
+          expiresAt: dec31_2026,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
     }
 
     // 6. Commit batch
@@ -447,7 +475,7 @@ export async function POST(request: NextRequest) {
         attendanceRecords: dailyRecords.length,
         weeklySummaries: weeklySummaries.size,
         leaveRequests: hasLeavePolicies ? 5 : 0,
-        leaveBalances: hasLeavePolicies ? 2 : 0,
+        leaveBalances: hasLeavePolicies ? (familyCarePolicyId ? 2 : 1) : 0,
         memberId: uid,
         dateRange: "2026-01-06 to 2026-02-28",
         warnings: leaveWarnings.length > 0 ? leaveWarnings : undefined,

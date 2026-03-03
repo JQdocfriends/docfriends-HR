@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Users,
   Clock,
+  CalendarDays,
   FileText,
   CheckSquare,
   Settings,
@@ -50,6 +51,11 @@ const mainNavItems: NavItem[] = [
     title: "근무",
     href: "/attendance",
     icon: Clock,
+  },
+  {
+    title: "휴가",
+    href: "/leave",
+    icon: CalendarDays,
   },
   {
     title: "전자계약",

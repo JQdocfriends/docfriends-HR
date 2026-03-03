@@ -29,18 +29,32 @@ import { LegalDisclaimer } from "@/components/common/legal-disclaimer";
 
 const LEAVE_TYPES: { value: LeaveType; label: string }[] = [
   { value: "annual", label: "연차" },
-  { value: "sick", label: "병가" },
-  { value: "menstrual", label: "생리휴가" },
-  { value: "parental", label: "출산/육아휴직" },
-  { value: "special", label: "특별휴가" },
+  { value: "family_care", label: "가족돌봄" },
+  { value: "military", label: "군소집훈련" },
+  { value: "infertility", label: "난임 치료" },
+  { value: "spouse_birth", label: "배우자출산" },
+  { value: "marriage_self", label: "결혼 - 본인" },
+  { value: "marriage_child", label: "결혼 - 자녀" },
+  { value: "condolence_spouse", label: "조의 - 배우자" },
+  { value: "condolence_parents", label: "조의 - 부모/자녀" },
+  { value: "condolence_grandparents", label: "조의 - 조부모/형제/자매" },
+  { value: "first_snow", label: "첫눈 휴가" },
+  { value: "health_checkup", label: "건강검진 휴가" },
 ];
 
 const DEFAULT_POLICIES: Omit<LeavePolicy, "id" | "createdAt" | "updatedAt">[] = [
-  { name: "연차휴가", type: "annual", annualDays: 15, isPaid: true, requiresApproval: true, autoApprove: false, minNoticeDays: 3, description: "근로기준법 제60조에 의한 연차유급휴가", isActive: true },
-  { name: "병가", type: "sick", annualDays: 30, isPaid: false, requiresApproval: true, autoApprove: false, minNoticeDays: 0, description: "질병 또는 부상으로 인한 휴가", isActive: true },
-  { name: "생리휴가", type: "menstrual", annualDays: 12, isPaid: false, requiresApproval: false, autoApprove: true, minNoticeDays: 0, description: "근로기준법 제73조에 의한 생리휴가 (월 1일)", isActive: true },
-  { name: "출산휴가", type: "parental", annualDays: 90, isPaid: true, requiresApproval: true, autoApprove: false, minNoticeDays: 30, description: "근로기준법 제74조에 의한 출산전후휴가", isActive: true },
-  { name: "경조사휴가", type: "special", annualDays: null, isPaid: true, requiresApproval: true, autoApprove: false, minNoticeDays: 1, description: "결혼, 출산, 사망 등 경조사 휴가", isActive: true },
+  { name: "연차휴가", type: "annual", grantType: "annual", annualDays: 15, grantDays: null, unit: "days", isPaid: true, requiresApproval: true, autoApprove: false, minNoticeDays: 3, description: "근로기준법 제60조에 의한 연차유급휴가", isActive: true },
+  { name: "가족돌봄", type: "family_care", grantType: "per_request", annualDays: null, grantDays: 1, unit: "days", isPaid: false, requiresApproval: true, autoApprove: false, minNoticeDays: 0, description: "가족의 질병·사고·노령으로 인한 돌봄 휴가", isActive: true },
+  { name: "군소집훈련", type: "military", grantType: "per_request", annualDays: null, grantDays: null, unit: "days", isPaid: true, requiresApproval: true, autoApprove: false, minNoticeDays: 7, description: "예비군/민방위 훈련 휴가", isActive: true },
+  { name: "난임 치료", type: "infertility", grantType: "annual", annualDays: 3, grantDays: null, unit: "days", isPaid: true, requiresApproval: true, autoApprove: false, minNoticeDays: 3, description: "난임 치료를 위한 휴가 (연 3일)", isActive: true },
+  { name: "배우자출산", type: "spouse_birth", grantType: "per_request", annualDays: null, grantDays: 10, unit: "days", isPaid: true, requiresApproval: true, autoApprove: false, minNoticeDays: 0, description: "배우자 출산 시 부여되는 휴가", isActive: true },
+  { name: "결혼 - 본인", type: "marriage_self", grantType: "per_request", annualDays: null, grantDays: 5, unit: "days", isPaid: true, requiresApproval: true, autoApprove: false, minNoticeDays: 7, description: "본인 결혼 경조사 휴가", isActive: true },
+  { name: "결혼 - 자녀", type: "marriage_child", grantType: "per_request", annualDays: null, grantDays: 1, unit: "days", isPaid: true, requiresApproval: true, autoApprove: false, minNoticeDays: 3, description: "자녀 결혼 경조사 휴가", isActive: true },
+  { name: "조의 - 배우자", type: "condolence_spouse", grantType: "per_request", annualDays: null, grantDays: 5, unit: "days", isPaid: true, requiresApproval: true, autoApprove: false, minNoticeDays: 0, description: "배우자 사망 시 경조사 휴가", isActive: true },
+  { name: "조의 - 부모/자녀", type: "condolence_parents", grantType: "per_request", annualDays: null, grantDays: 3, unit: "days", isPaid: true, requiresApproval: true, autoApprove: false, minNoticeDays: 0, description: "부모 또는 자녀 사망 시 경조사 휴가", isActive: true },
+  { name: "조의 - 조부모/형제/자매", type: "condolence_grandparents", grantType: "per_request", annualDays: null, grantDays: 2, unit: "days", isPaid: true, requiresApproval: true, autoApprove: false, minNoticeDays: 0, description: "조부모, 형제, 자매 사망 시 경조사 휴가", isActive: true },
+  { name: "첫눈 휴가", type: "first_snow", grantType: "per_request", annualDays: null, grantDays: 4, unit: "hours", isPaid: true, requiresApproval: true, autoApprove: false, minNoticeDays: 0, description: "첫눈 오는 날 조기 퇴근", isActive: true },
+  { name: "건강검진 휴가", type: "health_checkup", grantType: "per_request", annualDays: null, grantDays: 4, unit: "hours", isPaid: true, requiresApproval: true, autoApprove: false, minNoticeDays: 1, description: "건강검진을 위한 휴가", isActive: true },
 ];
 
 export default function LeavePolicySettingsPage() {
@@ -65,6 +79,9 @@ export default function LeavePolicySettingsPage() {
   const [formAutoApprove, setFormAutoApprove] = useState(false);
   const [formMinNoticeDays, setFormMinNoticeDays] = useState(3);
   const [formDescription, setFormDescription] = useState("");
+  const [formGrantType, setFormGrantType] = useState<"annual" | "per_request">("annual");
+  const [formGrantDays, setFormGrantDays] = useState<number | "">(1);
+  const [formUnit, setFormUnit] = useState<"days" | "hours">("days");
 
   const fetchPolicies = useCallback(async () => {
     try {
@@ -134,6 +151,9 @@ export default function LeavePolicySettingsPage() {
     setFormAutoApprove(false);
     setFormMinNoticeDays(3);
     setFormDescription("");
+    setFormGrantType("annual");
+    setFormGrantDays("");
+    setFormUnit("days");
     setDialogOpen(true);
   }
 
@@ -147,6 +167,9 @@ export default function LeavePolicySettingsPage() {
     setFormAutoApprove(policy.autoApprove);
     setFormMinNoticeDays(policy.minNoticeDays);
     setFormDescription(policy.description ?? "");
+    setFormGrantType(policy.grantType ?? "annual");
+    setFormGrantDays(policy.grantDays ?? "");
+    setFormUnit(policy.unit ?? "days");
     setDialogOpen(true);
   }
 
@@ -166,6 +189,9 @@ export default function LeavePolicySettingsPage() {
         autoApprove: formAutoApprove,
         minNoticeDays: formMinNoticeDays,
         description: formDescription.trim() || null,
+        grantType: formGrantType,
+        grantDays: formGrantDays === "" ? null : Number(formGrantDays),
+        unit: formUnit,
         isActive: editingPolicy?.isActive ?? true,
         updatedAt: serverTimestamp(),
       };
@@ -279,7 +305,7 @@ export default function LeavePolicySettingsPage() {
                 <TableRow>
                   <TableHead>휴가명</TableHead>
                   <TableHead>유형</TableHead>
-                  <TableHead>일수</TableHead>
+                  <TableHead>부여</TableHead>
                   <TableHead>유급</TableHead>
                   <TableHead>승인필요</TableHead>
                   <TableHead>상태</TableHead>
@@ -291,7 +317,13 @@ export default function LeavePolicySettingsPage() {
                   <TableRow key={policy.id}>
                     <TableCell className="font-medium">{policy.name}</TableCell>
                     <TableCell>{LEAVE_TYPES.find((t) => t.value === policy.type)?.label}</TableCell>
-                    <TableCell>{policy.annualDays ?? "-"}</TableCell>
+                    <TableCell>
+                      {policy.grantType === "annual"
+                        ? `연 ${policy.annualDays ?? "-"}${policy.unit === "hours" ? "시간" : "일"}`
+                        : policy.grantDays
+                          ? `${policy.grantDays}${policy.unit === "hours" ? "시간" : "일"}/건`
+                          : "건별"}
+                    </TableCell>
                     <TableCell>{policy.isPaid ? "유급" : "무급"}</TableCell>
                     <TableCell>{policy.requiresApproval ? "필요" : "불필요"}</TableCell>
                     <TableCell>
@@ -345,6 +377,32 @@ export default function LeavePolicySettingsPage() {
             <div className="space-y-2">
               <Label htmlFor="annualDays">연간 일수 (무제한은 비워두세요)</Label>
               <Input id="annualDays" type="number" min={0} value={formAnnualDays} onChange={(e) => setFormAnnualDays(e.target.value === "" ? "" : Number(e.target.value))} />
+            </div>
+            <div className="space-y-2">
+              <Label>부여 방식</Label>
+              <Select value={formGrantType} onValueChange={(v) => setFormGrantType(v as "annual" | "per_request")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="annual">연간 배정</SelectItem>
+                  <SelectItem value="per_request">건별 부여</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {formGrantType === "per_request" && (
+              <div className="space-y-2">
+                <Label htmlFor="grantDays">건당 부여 일수/시간 (미정은 비워두세요)</Label>
+                <Input id="grantDays" type="number" min={0} value={formGrantDays} onChange={(e) => setFormGrantDays(e.target.value === "" ? "" : Number(e.target.value))} />
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>단위</Label>
+              <Select value={formUnit} onValueChange={(v) => setFormUnit(v as "days" | "hours")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="days">일</SelectItem>
+                  <SelectItem value="hours">시간</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="minNoticeDays">최소 사전 신청일</Label>

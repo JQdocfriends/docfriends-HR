@@ -31,7 +31,15 @@ export default function LeaveRequestPage() {
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  const selectedPolicy = policies.find((p) => p.id === policyId);
+  const isHourBased = selectedPolicy?.unit === "hours";
+  const isPerRequest = selectedPolicy?.grantType === "per_request";
+  const hasFixedGrant = isPerRequest && selectedPolicy?.grantDays != null;
+
   function calculateDays(): number {
+    if (hasFixedGrant && selectedPolicy?.grantDays) {
+      return selectedPolicy.grantDays;
+    }
     if (!startDate || !endDate) return 0;
     if (isHalfDay) return 0.5;
     const start = new Date(startDate);
@@ -66,7 +74,7 @@ export default function LeaveRequestPage() {
         reason: reason.trim(),
       });
       toast.success("휴가 신청이 완료되었습니다.");
-      router.push("/attendance/leave");
+      router.push("/leave");
     } catch (error) {
       console.error("Leave request error:", error);
       toast.error("휴가 신청에 실패했습니다.");
@@ -79,7 +87,7 @@ export default function LeaveRequestPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="sm" asChild>
-          <Link href="/attendance/leave">
+          <Link href="/leave">
             <ArrowLeft className="mr-1 h-4 w-4" />
             뒤로
           </Link>
@@ -109,6 +117,15 @@ export default function LeaveRequestPage() {
               </Select>
             </div>
 
+            {selectedPolicy && isPerRequest && (
+              <div className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+                {selectedPolicy.grantDays
+                  ? `신청 시 ${selectedPolicy.grantDays}${isHourBased ? "시간" : "일"} 부여`
+                  : "건별 자유 입력"}
+              </div>
+            )}
+
+            {!hasFixedGrant && (
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -121,21 +138,22 @@ export default function LeaveRequestPage() {
                 반차 사용
               </Label>
             </div>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label>{isHalfDay ? "날짜 *" : "시작일 *"}</Label>
+                <Label>{isHalfDay || hasFixedGrant ? "날짜 *" : "시작일 *"}</Label>
                 <Input
                   type="date"
                   value={startDate}
                   onChange={(e) => {
                     setStartDate(e.target.value);
-                    if (isHalfDay) setEndDate(e.target.value);
+                    if (isHalfDay || hasFixedGrant) setEndDate(e.target.value);
                   }}
                   required
                 />
               </div>
-              {!isHalfDay && (
+              {!isHalfDay && !hasFixedGrant && (
                 <div className="space-y-1.5">
                   <Label>종료일 *</Label>
                   <Input
@@ -149,11 +167,11 @@ export default function LeaveRequestPage() {
               )}
             </div>
 
-            {startDate && (endDate || isHalfDay) && (
+            {startDate && (endDate || isHalfDay || hasFixedGrant) && (
               <div className="rounded-lg bg-muted p-3 text-sm">
-                신청 일수:{" "}
+                신청 {isHourBased ? "시간" : "일수"}:{" "}
                 <span className="font-semibold text-primary">
-                  {calculateDays()}일
+                  {calculateDays()}{isHourBased ? "시간" : "일"}
                 </span>
               </div>
             )}
@@ -174,7 +192,7 @@ export default function LeaveRequestPage() {
 
         <div className="mt-6 flex justify-end gap-3">
           <Button variant="outline" type="button" asChild>
-            <Link href="/attendance/leave">취소</Link>
+            <Link href="/leave">취소</Link>
           </Button>
           <Button type="submit" disabled={submitting}>
             {submitting ? "신청 중..." : "휴가 신청"}
