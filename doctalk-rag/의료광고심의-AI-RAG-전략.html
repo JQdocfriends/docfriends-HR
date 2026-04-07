@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI를 활용한 의료광고심의 — RAG 전략 문서</title>
+    <style>
+        :root {
+            --primary: #1a365d;
+            --primary-light: #2c5282;
+            --accent: #3182ce;
+            --accent-light: #ebf8ff;
+            --success: #276749;
+            --success-bg: #f0fff4;
+            --warning: #975a16;
+            --warning-bg: #fffff0;
+            --danger: #c53030;
+            --danger-bg: #fff5f5;
+            --gray-50: #f7fafc;
+            --gray-100: #edf2f7;
+            --gray-200: #e2e8f0;
+            --gray-300: #cbd5e0;
+            --gray-600: #718096;
+            --gray-700: #4a5568;
+            --gray-800: #2d3748;
+            --gray-900: #1a202c;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--gray-50);
+            color: var(--gray-800);
+            line-height: 1.7;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            padding: 48px 0;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            letter-spacing: -0.02em;
+        }
+
+        .header p {
+            font-size: 1rem;
+            opacity: 0.85;
+            max-width: 640px;
+            margin: 0 auto;
+        }
+
+        .header .meta {
+            margin-top: 20px;
+            font-size: 0.85rem;
+            opacity: 0.7;
+        }
+
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+        }
+
+        .toc {
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: 12px;
+            padding: 32px;
+            margin-bottom: 40px;
+        }
+
+        .toc h2 {
+            font-size: 1.1rem;
+            color: var(--primary);
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--gray-100);
+        }
+
+        .toc ol {
+            list-style: none;
+            counter-reset: toc;
+        }
+
+        .toc > ol > li {
+            counter-increment: toc;
+            margin-bottom: 8px;
+        }
+
+        .toc > ol > li::before {
+            content: counter(toc) ".";
+            font-weight: 700;
+            color: var(--accent);
+            margin-right: 8px;
+        }
+
+        .toc a {
+            color: var(--gray-700);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .toc a:hover { color: var(--accent); }
+
+        section {
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: 12px;
+            padding: 36px;
+            margin-bottom: 32px;
+        }
+
+        section h2 {
+            font-size: 1.4rem;
+            color: var(--primary);
+            margin-bottom: 8px;
+            padding-bottom: 12px;
+            border-bottom: 3px solid var(--accent);
+            letter-spacing: -0.01em;
+        }
+
+        h3 {
+            font-size: 1.15rem;
+            color: var(--primary-light);
+            margin: 28px 0 14px;
+        }
+
+        h4 {
+            font-size: 1rem;
+            color: var(--gray-700);
+            margin: 20px 0 10px;
+        }
+
+        p { margin-bottom: 12px; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0 24px;
+            font-size: 0.92rem;
+        }
+
+        thead th {
+            background: var(--primary);
+            color: white;
+            padding: 12px 14px;
+            text-align: left;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        thead th:first-child { border-radius: 8px 0 0 0; }
+        thead th:last-child { border-radius: 0 8px 0 0; }
+
+        tbody td {
+            padding: 11px 14px;
+            border-bottom: 1px solid var(--gray-100);
+            vertical-align: top;
+        }
+
+        tbody tr:hover { background: var(--gray-50); }
+        tbody tr:last-child td:first-child { border-radius: 0 0 0 8px; }
+        tbody tr:last-child td:last-child { border-radius: 0 0 8px 0; }
+
+        .flow-diagram {
+            background: var(--gray-900);
+            color: #e2e8f0;
+            padding: 24px 28px;
+            border-radius: 10px;
+            font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.85rem;
+            line-height: 1.8;
+            overflow-x: auto;
+            margin: 16px 0 24px;
+            white-space: pre;
+        }
+
+        .flow-diagram .highlight { color: #63b3ed; font-weight: 600; }
+        .flow-diagram .arrow { color: #68d391; }
+        .flow-diagram .comment { color: #718096; }
+        .flow-diagram .label { color: #fbd38d; }
+
+        .callout {
+            border-radius: 10px;
+            padding: 20px 24px;
+            margin: 20px 0;
+        }
+
+        .callout-info {
+            background: var(--accent-light);
+            border-left: 4px solid var(--accent);
+        }
+
+        .callout-success {
+            background: var(--success-bg);
+            border-left: 4px solid var(--success);
+        }
+
+        .callout-warning {
+            background: var(--warning-bg);
+            border-left: 4px solid var(--warning);
+        }
+
+        .callout-danger {
+            background: var(--danger-bg);
+            border-left: 4px solid var(--danger);
+        }
+
+        .callout strong { display: block; margin-bottom: 6px; }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            margin-right: 4px;
+        }
+
+        .badge-priority { background: #fed7d7; color: #c53030; }
+        .badge-high { background: #fefcbf; color: #975a16; }
+        .badge-medium { background: #c6f6d5; color: #276749; }
+        .badge-low { background: #e2e8f0; color: #4a5568; }
+
+        .compare-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin: 16px 0;
+        }
+
+        .compare-card {
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .compare-bad {
+            background: var(--danger-bg);
+            border: 1px solid #feb2b2;
+        }
+
+        .compare-good {
+            background: var(--success-bg);
+            border: 1px solid #9ae6b4;
+        }
+
+        .compare-card h4 { margin-top: 0; }
+
+        .phase-timeline {
+            position: relative;
+            padding-left: 32px;
+            margin: 20px 0;
+        }
+
+        .phase-timeline::before {
+            content: '';
+            position: absolute;
+            left: 12px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--gray-200);
+            border-radius: 2px;
+        }
+
+        .phase-item {
+            position: relative;
+            margin-bottom: 28px;
+        }
+
+        .phase-item::before {
+            content: '';
+            position: absolute;
+            left: -26px;
+            top: 6px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 3px solid var(--accent);
+            background: white;
+        }
+
+        .phase-item.active::before {
+            background: var(--accent);
+        }
+
+        .phase-item h4 {
+            margin-top: 0;
+            color: var(--primary);
+        }
+
+        .phase-item .period {
+            font-size: 0.85rem;
+            color: var(--gray-600);
+            margin-bottom: 8px;
+        }
+
+        .summary-box {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 36px;
+            margin: 20px 0;
+        }
+
+        .summary-box h3 {
+            color: white;
+            margin-top: 0;
+            font-size: 1.2rem;
+        }
+
+        .summary-box p {
+            opacity: 0.9;
+        }
+
+        .summary-box blockquote {
+            border-left: 3px solid rgba(255,255,255,0.4);
+            padding-left: 16px;
+            margin: 12px 0;
+            opacity: 0.95;
+        }
+
+        .tag-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 12px 0;
+        }
+
+        .tag {
+            background: rgba(255,255,255,0.2);
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 640px) {
+            .header { padding: 32px 20px; }
+            .header h1 { font-size: 1.5rem; }
+            section { padding: 24px 20px; }
+            .compare-grid { grid-template-columns: 1fr; }
+            table { font-size: 0.82rem; }
+            thead th, tbody td { padding: 8px 10px; }
+        }
+
+        @media print {
+            .header { background: var(--primary) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            section { break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>AI를 활용한 의료광고심의 - RAG 전략 문서</h1>
+    <p>대한의사협회 컨소시엄 과제를 위한 데이터 확보 전략, 데이터 품질 대응 전략, RAG 아키텍처 설계</p>
+    <div class="meta">작성일: 2026-04-07 | 프로젝트: 대한의사협회 AI 의료광고심의 컨소시엄</div>
+</div>
+
+<div class="container">
+
+    <!-- 목차 -->
+    <div class="toc">
+        <h2>목차</h2>
+        <ol>
+            <li><a href="#section1">대한의사협회로부터 받아야 하는 데이터</a></li>
+            <li><a href="#section2">데이터 품질이 떨어지거나 제공이 어려운 경우의 전략</a></li>
+            <li><a href="#section3">RAG 적용 영역 설계</a></li>
+            <li><a href="#section4">데이터 확보 로드맵</a></li>
+            <li><a href="#section5">핵심 요약</a></li>
+        </ol>
+    </div>
+
+    <!-- 섹션 1 -->
+    <section id="section1">
+        <h2>1. 대한의사협회로부터 받아야 하는 데이터</h2>
+
+        <h3>1순위: 심의 판단의 핵심 <span class="badge badge-priority">필수</span></h3>
+        <p>이 데이터가 없으면 RAG 자체가 불가능하다.</p>
+        <table>
+            <thead>
+                <tr><th>데이터</th><th>구체적 내용</th><th>예상 형태</th><th>비고</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>과거 심의 결정 데이터</strong></td><td>접수된 광고 원문 + 승인/반려/수정요청 결과 + 심의 사유</td><td>DB 또는 문서</td><td>연도별 건수, 필드 구조 사전 확인 필요</td></tr>
+                <tr><td><strong>심의 기준 가이드라인</strong></td><td>내부적으로 사용하는 심의 판단 매뉴얼, 체크리스트</td><td>PDF, 문서</td><td>비공개 자료일 가능성 높음</td></tr>
+                <tr><td><strong>금지/허용 표현 목록</strong></td><td>"최고", "100% 완치" 등 금지 표현 + 경계선 표현 사례집</td><td>엑셀, 문서</td><td>진료과별 차이 포함 여부 확인</td></tr>
+            </tbody>
+        </table>
+
+        <h3>2순위: 법적 근거 <span class="badge badge-high">높음</span></h3>
+        <table>
+            <thead>
+                <tr><th>데이터</th><th>구체적 내용</th><th>비고</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>의료광고 관련 법령 모음</strong></td><td>의료법 제56조~57조, 시행령, 시행규칙</td><td>법제처에서도 확보 가능하지만 협회 정리본이 실무적</td></tr>
+                <tr><td><strong>보건복지부 고시/지침</strong></td><td>의료광고심의 세부기준, 행정처분 기준</td><td>변경 이력 포함 필요</td></tr>
+                <tr><td><strong>유권해석/질의회신</strong></td><td>복지부·심평원 등에 질의한 답변 모음</td><td>협회만 가진 비공개 자료일 가능성 높음</td></tr>
+                <tr><td><strong>관련 판례</strong></td><td>의료광고 위반 관련 법원 판결문</td><td>협회 법무팀 정리본</td></tr>
+            </tbody>
+        </table>
+
+        <h3>3순위: 운영 데이터 <span class="badge badge-medium">보통</span></h3>
+        <table>
+            <thead>
+                <tr><th>데이터</th><th>구체적 내용</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>심의 신청 FAQ</strong></td><td>자주 묻는 질문과 답변 (신청 절차, 소요 기간, 수수료 등)</td></tr>
+                <tr><td><strong>민원 응대 이력</strong></td><td>과거 전화/이메일/민원 문의 내용 + 답변</td></tr>
+                <tr><td><strong>심의 신청 양식/절차 문서</strong></td><td>신청서 양식, 필요 서류, 프로세스 안내문</td></tr>
+            </tbody>
+        </table>
+
+        <h3>4순위: 분류 체계 <span class="badge badge-low">선택</span></h3>
+        <table>
+            <thead>
+                <tr><th>데이터</th><th>구체적 내용</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>광고 유형 분류 체계</strong></td><td>온라인/오프라인, 매체별(SNS, 블로그, 현수막 등) 분류 기준</td></tr>
+                <tr><td><strong>진료과별 심의 특이사항</strong></td><td>성형외과, 피부과, 치과 등 과별로 다른 심의 기준</td></tr>
+                <tr><td><strong>KCPI 분류 데이터</strong></td><td>한국형 의료행위 분류 시스템 (RFP SFR-107)</td></tr>
+            </tbody>
+        </table>
+
+        <h3>데이터 요청 시 반드시 확인할 사항</h3>
+        <div class="callout callout-warning">
+            <strong>사전 확인 체크리스트</strong>
+            <table>
+                <thead>
+                    <tr><th>확인 항목</th><th>질문</th><th>왜 중요한가</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>형태 &amp; 볼륨</strong></td><td>심의 결정 데이터가 DB에 있는가, 문서(PDF/HWP)로만 있는가? 연간 심의 건수는?</td><td>수백 건 vs 수만 건에 따라 RAG 설계가 완전히 달라짐</td></tr>
+                    <tr><td><strong>비식별화 범위</strong></td><td>신청자(병원/의사) 정보 포함 여부, 개인정보 제거 후 제공 가능 여부</td><td>개인정보보호법 준수 필수</td></tr>
+                    <tr><td><strong>갱신 주기</strong></td><td>법령/고시 변경 시 업데이트 주체와 주기, 실시간 연동 가능 여부</td><td>Wiki 자동 업데이트 설계에 영향</td></tr>
+                    <tr><td><strong>비공개 자료 활용 범위</strong></td><td>유권해석, 내부 가이드라인 등의 컨소시엄 내 사용 제한 조건</td><td>데이터 접근 권한 설계에 영향</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- 섹션 2 -->
+    <section id="section2">
+        <h2>2. 데이터 품질이 떨어지거나 제공이 어려운 경우의 전략</h2>
+
+        <h3>전략 A: 공개 데이터로 RAG 기반을 먼저 구축</h3>
+        <p>협회 데이터 없이도 확보 가능한 공개 소스:</p>
+        <table>
+            <thead>
+                <tr><th>소스</th><th>데이터</th><th>확보 방법</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>법제처</td><td>의료법, 시행령, 시행규칙 전문</td><td>공개 API</td></tr>
+                <tr><td>보건복지부</td><td>의료광고심의 세부기준 고시</td><td>공개 문서</td></tr>
+                <tr><td>법원</td><td>의료광고 관련 판례</td><td>판례검색 시스템</td></tr>
+                <tr><td>국회</td><td>의료광고 관련 입법 자료, 질의서</td><td>의안정보시스템</td></tr>
+                <tr><td>심평원</td><td>의료행위 분류, 요양기관 정보</td><td>HIRA API</td></tr>
+                <tr><td>의료광고심의위원회</td><td>공개된 심의 결과 공고</td><td>웹 크롤링</td></tr>
+            </tbody>
+        </table>
+        <div class="callout callout-info">
+            <strong>이것만으로 가능한 수준</strong>
+            "이 표현이 법적으로 문제가 되는가?" 수준의 1차 판단은 공개 데이터만으로도 가능하다.
+        </div>
+
+        <h3>전략 B: 시스템 사용 과정에서 데이터를 생성 (Compound 학습)</h3>
+        <p>닥톡의 Compound 학습 패턴과 동일한 원리:</p>
+
+        <div class="flow-diagram"><span class="comment">[현재]</span> 데이터가 없다
+   <span class="arrow">|</span>
+   <span class="arrow">v</span>
+<span class="highlight">[1단계]</span> AI가 공개 법령 기반으로 1차 스크리닝 제공
+   <span class="arrow">|</span>
+   <span class="arrow">v</span>
+<span class="highlight">[2단계]</span> 심의위원이 AI 판단을 검토하고 "승인/수정/반려" 결정
+   <span class="arrow">|</span>
+   <span class="arrow">v</span>
+<span class="highlight">[3단계]</span> 그 결정이 곧 <span class="label">"라벨링된 데이터"</span>가 된다  <span class="comment">&lt;-- 데이터 생성 시작점</span>
+   <span class="arrow">|</span>
+   <span class="arrow">v</span>
+<span class="highlight">[4단계]</span> 쌓인 데이터로 RAG 품질이 점점 좋아짐
+   <span class="arrow">|</span>
+   <span class="arrow">v</span>
+<span class="highlight">[반복]</span> 사용할수록 AI가 심의 기준을 더 정확히 학습</div>
+
+        <div class="callout callout-success">
+            <strong>핵심</strong>
+            데이터를 "받는 것"이 아니라 <strong>"시스템 사용 과정에서 생성하는 것"</strong>으로 전환한다.
+        </div>
+
+        <h3>심의위원 워크플로우에 라벨링을 자연스럽게 녹이기</h3>
+
+        <div class="flow-diagram"><span class="highlight">광고 접수</span> <span class="arrow">--></span> AI가 1차 분석 결과 제시
+              <span class="arrow">|</span>
+              <span class="arrow">|--</span> 위반 의심 표현 하이라이트
+              <span class="arrow">|--</span> 관련 법령 조항 제시
+              <span class="arrow">+--</span> 유사 사례 제시 <span class="comment">(초기엔 없음 -> 점점 쌓임)</span>
+              <span class="arrow">|</span>
+              <span class="arrow">v</span>
+         <span class="highlight">심의위원이 최종 판단</span>
+              <span class="arrow">|</span>
+              <span class="arrow">|--</span> [승인] / [반려] / [수정요청]    <span class="label">&lt;-- 라벨</span>
+              <span class="arrow">|--</span> 사유 입력 (드롭다운 + 자유입력)  <span class="label">&lt;-- 라벨의 근거</span>
+              <span class="arrow">+--</span> AI 분석 피드백 (선택)           <span class="label">&lt;-- 품질 개선용</span></div>
+
+        <div class="callout callout-info">
+            <strong>포인트</strong>
+            심의위원 입장에서는 "AI를 위해 라벨링하는 것"이 아니라 <strong>"원래 하던 심의 업무를 하는 것"</strong>이다. 추가 작업이 거의 없다.
+        </div>
+
+        <h3>협회에 제안할 때의 프레이밍</h3>
+        <div class="compare-grid">
+            <div class="compare-card compare-bad">
+                <h4>&#10060; 잘못된 접근</h4>
+                <p><strong>"과거 데이터를 주세요"</strong></p>
+                <p>결과: 없다 / 못 준다 / 정리가 안 됐다</p>
+            </div>
+            <div class="compare-card compare-good">
+                <h4>&#10004; 올바른 접근</h4>
+                <p><strong>"시스템을 쓰시면 자연스럽게 데이터가 쌓이고, 쓸수록 AI가 똑똑해집니다"</strong></p>
+                <p>결과: 협회는 데이터 정리 부담 없이 시작 가능, 시간이 지날수록 고유 자산 축적</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- 섹션 3 -->
+    <section id="section3">
+        <h2>3. RAG 적용 영역 설계</h2>
+
+        <h3>3.1 핵심 적용 영역</h3>
+
+        <h4>영역 1: 의료광고 심의 판단 지원 <span class="badge badge-priority">가장 핵심</span></h4>
+        <p><strong>데이터</strong>: 의료법/고시/지침 + 과거 심의 사례 + 유권해석/판례</p>
+
+        <div class="flow-diagram"><span class="highlight">[심의위원]</span> "시술 전후 사진을 사용한 광고인데, 허용되나요?"
+     <span class="arrow">|</span>
+     <span class="arrow">v</span>
+<span class="highlight">[RAG 검색]</span> 의료법 제56조 + 의료광고심의 가이드라인 + 유사 판례 3건
+     <span class="arrow">|</span>
+     <span class="arrow">v</span>
+<span class="highlight">[AI 답변]</span> "의료법 제56조제2항제8호에 따라 치료효과를 보장하는
+          전후 사진은 금지. 단, OO 조건 하에 허용된 사례 있음 <span class="label">[출처1][출처2]</span>"</div>
+
+        <h4>영역 2: 의료광고 자동 사전 스크리닝</h4>
+        <p><strong>데이터</strong>: 금지 표현 목록, 허용/불허 경계선 사례집, KCPI</p>
+        <p><strong>활용</strong>: 광고 원문 접수 시 AI가 자동으로 위반 가능성이 높은 표현을 1차 스크리닝하여 심의위원 업무 부담 경감</p>
+
+        <h4>영역 3: 통합 민원 창구 챗봇</h4>
+        <p><strong>데이터</strong>: 심의 신청 절차 FAQ, 심의 기준 가이드라인, 과거 민원 응대 내역</p>
+        <p><strong>활용</strong>: 의사/병원이 "이런 광고는 심의 통과 가능한가요?" 같은 질문에 규정+사례 기반 사전 안내</p>
+
+        <h4>영역 4: 법령 변경 시 자동 업데이트 (Karpathy Wiki 패턴)</h4>
+        <div class="compare-grid">
+            <div class="compare-card compare-bad">
+                <h4>기존 방식</h4>
+                <p>법령 변경 &rarr; 심의위원이 직접 새 기준 학습 &rarr; 시간 소요</p>
+            </div>
+            <div class="compare-card compare-good">
+                <h4>Wiki 방식</h4>
+                <p>법령 변경 &rarr; AI가 자동으로 심의 가이드 Wiki 업데이트 &rarr; 심의위원은 항상 최신 기준 참조 가능</p>
+            </div>
+        </div>
+
+        <h3>3.2 RAG 아키텍처 — 의료광고심의 맞춤 설계</h3>
+
+        <div class="flow-diagram"><span class="highlight">[광고 원문 접수]</span>
+     <span class="arrow">|</span>
+     <span class="arrow">v</span>
+<span class="highlight">[1. 안전 검사]</span> 개인정보 포함 여부 확인 <span class="arrow">--></span> 포함 시 마스킹
+     <span class="arrow">|</span>
+     <span class="arrow">v</span>
+<span class="highlight">[2. 자동 스크리닝]</span> 금지 표현 DB 기반 1차 위반 탐지
+     <span class="arrow">|</span>  <span class="arrow">--></span> 명확한 위반: 즉시 플래그
+     <span class="arrow">|</span>  <span class="arrow">--></span> 경계선: 심의위원 판단 필요 표시
+     <span class="arrow">v</span>
+<span class="highlight">[3. RAG 검색]</span> 관련 법령 + 유사 심의 사례 + 판례 검색
+     <span class="arrow">|</span>  <span class="arrow">--></span> 검색 우선순위: <span class="label">① 심의 사례 ② 법령/고시 ③ 판례 ④ 유권해석</span>
+     <span class="arrow">|</span>  <span class="arrow">--></span> 3단계 깔때기: 50개 후보 <span class="arrow">--></span> 12개 재정렬 <span class="arrow">--></span> 6~8개 최종
+     <span class="arrow">v</span>
+<span class="highlight">[4. AI 분석 보고서 생성]</span>
+     <span class="arrow">|</span>  <span class="arrow">--></span> 위반 의심 항목 + 근거 법령 + 유사 사례 제시
+     <span class="arrow">|</span>  <span class="arrow">--></span> 출처 표시: <span class="label">[법령1], [사례2]</span> 형태
+     <span class="arrow">v</span>
+<span class="highlight">[5. 심의위원 검토 &amp; 결정]</span>
+     <span class="arrow">|</span>  <span class="arrow">--></span> 승인 / 반려 / 수정요청 + 사유
+     <span class="arrow">v</span>
+<span class="highlight">[6. 학습]</span> 결정 결과를 데이터로 저장 <span class="arrow">--></span> 다음 심의 시 RAG 품질 향상</div>
+
+        <h3>3.3 검색 우선순위 설계</h3>
+        <table>
+            <thead>
+                <tr><th>순위</th><th>데이터 소스</th><th>가중치</th><th>이유</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>1순위</td><td>과거 심의 결정 사례</td><td><strong>40%</strong></td><td>가장 실질적인 판단 근거 (같은 맥락의 선례)</td></tr>
+                <tr><td>2순위</td><td>법령/고시/지침</td><td><strong>30%</strong></td><td>법적 기준선</td></tr>
+                <tr><td>3순위</td><td>판례/유권해석</td><td><strong>20%</strong></td><td>경계선 케이스의 판단 근거</td></tr>
+                <tr><td>4순위</td><td>금지 표현 목록</td><td><strong>10%</strong></td><td>명확한 위반 탐지용</td></tr>
+            </tbody>
+        </table>
+
+        <h3>3.4 안전 장치 설계</h3>
+        <table>
+            <thead>
+                <tr><th>검사 항목</th><th>대응</th><th>이유</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>AI가 "이 광고는 합법입니다" 단정</td><td>"위반 가능성이 낮습니다"로 표현 변경</td><td>최종 판단은 반드시 심의위원이 해야 함</td></tr>
+                <tr><td>개인정보(병원명, 의사명) 노출</td><td>마스킹 처리</td><td>심의 과정의 공정성 보호</td></tr>
+                <tr><td>근거 없는 답변</td><td>"관련 사례를 찾지 못했습니다. 심의위원의 직접 판단이 필요합니다"</td><td>환각 방지</td></tr>
+                <tr><td>출처 미표시</td><td>모든 판단에 [출처] 필수 첨부</td><td>심의 근거의 투명성</td></tr>
+            </tbody>
+        </table>
+    </section>
+
+    <!-- 섹션 4 -->
+    <section id="section4">
+        <h2>4. 데이터 확보 로드맵</h2>
+
+        <div class="phase-timeline">
+            <div class="phase-item active">
+                <h4>Phase 1: 시스템 구축 시점</h4>
+                <div class="period">M0 ~ M3</div>
+                <table>
+                    <thead><tr><th>작업</th><th>데이터 소스</th><th>기대 효과</th></tr></thead>
+                    <tbody>
+                        <tr><td>공개 법령/고시/판례 수집 및 임베딩</td><td>법제처, 보건복지부, 법원</td><td>법령 기반 1차 스크리닝 가능</td></tr>
+                        <tr><td>금지 표현 목록 구축</td><td>협회 제공 또는 법령에서 추출</td><td>명확한 위반 자동 탐지</td></tr>
+                        <tr><td>KCPI 분류 체계 연동</td><td>협회 DB (SFR-107)</td><td>진료과별 맞춤 심의 지원</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="phase-item">
+                <h4>Phase 2: 파일럿 운영</h4>
+                <div class="period">M4 ~ M6</div>
+                <table>
+                    <thead><tr><th>작업</th><th>데이터 소스</th><th>기대 효과</th></tr></thead>
+                    <tbody>
+                        <tr><td>심의위원 실사용을 통한 결정 데이터 축적</td><td>시스템 사용 과정에서 자동 생성</td><td>Compound 학습 시작</td></tr>
+                        <tr><td>심의위원 피드백 수집</td><td>AI 판단 정확도 피드백</td><td>검색 품질 튜닝</td></tr>
+                        <tr><td>FAQ/민원 데이터 축적</td><td>챗봇 사용 로그</td><td>챗봇 응답 품질 향상</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="phase-item">
+                <h4>Phase 3: 본격 운영</h4>
+                <div class="period">M7 ~</div>
+                <table>
+                    <thead><tr><th>작업</th><th>데이터 소스</th><th>기대 효과</th></tr></thead>
+                    <tbody>
+                        <tr><td>축적된 심의 사례 기반 Wiki 자동 생성</td><td>Phase 2에서 쌓인 데이터</td><td>Karpathy Wiki 패턴 본격 적용</td></tr>
+                        <tr><td>법령 변경 시 Wiki 자동 업데이트</td><td>법제처 API 모니터링</td><td>항상 최신 기준 반영</td></tr>
+                        <tr><td>심의 품질 리포트 자동 생성</td><td>전체 축적 데이터</td><td>심의 일관성 분석, 개선점 도출</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- 섹션 5 -->
+    <section id="section5">
+        <h2>5. 핵심 요약</h2>
+
+        <div class="summary-box">
+            <h3>데이터가 충분할 때</h3>
+            <blockquote>
+                RAG = 과거 심의 사례 + 법령을 검색해서 심의위원에게 판단 근거를 제시하는 기술.<br>
+                가장 중요한 데이터는 <strong>"과거 심의 결정 (광고 원문 + 결과 + 사유)"</strong> 이다.
+            </blockquote>
+        </div>
+
+        <div class="summary-box" style="background: linear-gradient(135deg, #276749 0%, #2f855a 100%);">
+            <h3>데이터가 부족할 때</h3>
+            <blockquote>
+                공개 법령으로 시작하고, 시스템 사용 과정에서 데이터를 생성한다.<br>
+                심의위원의 일상 업무 자체가 라벨링이 되는 구조를 설계한다.<br>
+                <strong>"데이터를 받는 것"이 아니라 "데이터가 만들어지는 시스템을 구축하는 것"</strong>이 핵심 제안 가치이다.
+            </blockquote>
+        </div>
+
+        <div class="summary-box" style="background: linear-gradient(135deg, #975a16 0%, #b7791f 100%);">
+            <h3>기술적 기반 (닥톡 RAG 패턴 적용)</h3>
+            <div class="tag-group">
+                <span class="tag">Karpathy Wiki 패턴</span>
+                <span class="tag">Compound 학습</span>
+                <span class="tag">3단계 검색 깔때기</span>
+                <span class="tag">이중 안전 장치</span>
+            </div>
+            <blockquote>
+                심의 기준 요약지 자동 생성/업데이트 | AI 출력이 다시 입력이 되어 지식이 축적 | 50개 후보 &rarr; 12개 재정렬 &rarr; 6~8개 최종 선택 | 단정적 표현 방지 + 출처 필수 + 심의위원 최종 판단 보장
+            </blockquote>
+        </div>
+    </section>
+
+</div>
+
+</body>
+</html>
