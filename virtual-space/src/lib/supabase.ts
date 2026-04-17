@@ -15,9 +15,6 @@ export function getSupabase(): SupabaseClient {
   cached = createClient(url, anonKey, {
     realtime: {
       params: { eventsPerSecond: 20 },
-      logger: (kind: string, msg: string, data?: unknown) => {
-        console.log("[realtime]", kind, msg, data);
-      },
     },
   });
   return cached;

@@ -162,11 +162,10 @@ export class GameEngine {
       remote?.startJump();
     });
 
-    channel.subscribe(async (status, err) => {
-      console.log("[supabase] subscribe status:", status, err);
+    channel.subscribe(async (status) => {
       if (status === "SUBSCRIBED") {
         this.subscribed = true;
-        const trackResult = await channel.track({
+        await channel.track({
           id: this.clientId,
           name,
           avatar,
@@ -174,7 +173,6 @@ export class GameEngine {
           y: spawnY,
           direction: "down",
         } satisfies PresencePayload);
-        console.log("[supabase] track result:", trackResult);
         this.events.onConnected();
       } else if (
         status === "CHANNEL_ERROR" ||
