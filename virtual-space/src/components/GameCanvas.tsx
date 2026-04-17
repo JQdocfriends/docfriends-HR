@@ -16,11 +16,15 @@ export default function GameCanvas({ name, avatar }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
   const chatInputRef = useRef<HTMLInputElement>(null);
+  const floatingInputRef = useRef<HTMLInputElement>(null);
+  const floatingWrapperRef = useRef<HTMLDivElement>(null);
   const [players, setPlayers] = useState<PlayerEntity[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [nearbyIds, setNearbyIds] = useState<string[]>([]);
   const [localId, setLocalId] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
+  const [floatingActive, setFloatingActive] = useState(false);
+  const [floatingText, setFloatingText] = useState("");
 
   const handleSend = useCallback((text: string) => {
     engineRef.current?.sendChat(text);
@@ -34,16 +38,62 @@ export default function GameCanvas({ name, avatar }: Props) {
     engineRef.current?.setInputEnabled(true);
   }, []);
 
+  // Enter: open floating chat input above character (unless typing in an input)
   useEffect(() => {
-    const handleGlobalEnter = (e: KeyboardEvent) => {
-      if (e.key === "Enter" && document.activeElement !== chatInputRef.current) {
-        e.preventDefault();
-        chatInputRef.current?.focus();
-      }
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== "Enter") return;
+      const active = document.activeElement as HTMLElement | null;
+      if (active?.tagName === "INPUT" || active?.tagName === "TEXTAREA") return;
+      e.preventDefault();
+      setFloatingActive(true);
     };
-    window.addEventListener("keydown", handleGlobalEnter);
-    return () => window.removeEventListener("keydown", handleGlobalEnter);
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, []);
+
+  // Focus the floating input and disable movement while it's active
+  useEffect(() => {
+    if (floatingActive) {
+      engineRef.current?.setInputEnabled(false);
+      floatingInputRef.current?.focus();
+    } else {
+      engineRef.current?.setInputEnabled(true);
+      setFloatingText("");
+    }
+  }, [floatingActive]);
+
+  // Track the character's screen position each frame while the input is open
+  useEffect(() => {
+    if (!floatingActive) return;
+    let raf = 0;
+    const tick = () => {
+      const pos = engineRef.current?.getLocalPlayerScreenPos();
+      const wrap = floatingWrapperRef.current;
+      if (pos && wrap) {
+        wrap.style.left = `${pos.x}px`;
+        wrap.style.top = `${pos.y}px`;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [floatingActive]);
+
+  const handleFloatingSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = floatingText.trim();
+    if (trimmed) {
+      engineRef.current?.sendChat(trimmed);
+    }
+    setFloatingActive(false);
+  };
+
+  const handleFloatingKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setFloatingActive(false);
+    }
+  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -90,26 +140,51 @@ export default function GameCanvas({ name, avatar }: Props) {
   }, [name, avatar]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-gray-900">
+    <div className="relative w-screen h-screen overflow-hidden bg-[#1a2a15]">
       <canvas
         ref={canvasRef}
         className="block"
         style={{ imageRendering: "pixelated" }}
       />
 
+      {/* Floating chat input above the character */}
+      {floatingActive && (
+        <div
+          ref={floatingWrapperRef}
+          className="absolute pointer-events-auto -translate-x-1/2 -translate-y-full pb-2"
+          style={{ left: -9999, top: -9999 }}
+        >
+          <form onSubmit={handleFloatingSubmit}>
+            <input
+              ref={floatingInputRef}
+              type="text"
+              value={floatingText}
+              onChange={(e) => setFloatingText(e.target.value)}
+              onKeyDown={handleFloatingKeyDown}
+              onBlur={() => setFloatingActive(false)}
+              maxLength={100}
+              placeholder="이야기하기..."
+              className="px-3 py-2 bg-white/95 backdrop-blur-sm border-2 border-[#6aaa4a] rounded-xl text-[#1a2a15] text-sm placeholder-[#6a7a60] focus:outline-none min-w-[220px] shadow-lg"
+            />
+          </form>
+        </div>
+      )}
+
       {/* Connection status */}
       <div className="absolute top-4 left-4">
-        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono ${
-          connected ? "bg-green-900/80 text-green-300" : "bg-red-900/80 text-red-300"
-        }`}>
-          <div className={`w-2 h-2 rounded-full ${connected ? "bg-green-400" : "bg-red-400"}`} />
+        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] ${
+          connected
+            ? "bg-[#1a2a15]/80 text-[#6aaa4a] border border-[#3a5a2a]/40"
+            : "bg-[#2a1515]/80 text-[#cc6666] border border-[#5a2a2a]/40"
+        } backdrop-blur-sm`}>
+          <div className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-[#6aaa4a]" : "bg-[#cc6666]"}`} />
           {connected ? "연결됨" : "연결 끊김"}
         </div>
       </div>
 
       {/* Controls hint */}
-      <div className="absolute bottom-4 left-4 text-gray-500 text-xs font-mono bg-gray-900/70 px-3 py-2 rounded-lg">
-        방향키로 이동
+      <div className="absolute bottom-4 left-4 text-[#5a7a4a] text-[11px] bg-[#1a2a15]/70 backdrop-blur-sm px-3 py-2 rounded-xl border border-[#3a5a2a]/30">
+        방향키 이동 · Enter 대화 · Esc 취소
       </div>
 
       <PlayerList players={players} localId={localId} nearbyIds={nearbyIds} />

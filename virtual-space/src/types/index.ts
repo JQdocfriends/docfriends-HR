@@ -21,7 +21,9 @@ export interface ChatMessage {
 export type ClientMessage =
   | { type: "join"; name: string; avatar: number }
   | { type: "move"; x: number; y: number; direction: Player["direction"] }
-  | { type: "chat"; text: string };
+  | { type: "chat"; text: string }
+  | { type: "vent"; fromX: number; fromY: number }
+  | { type: "jump" };
 
 // Server -> Client messages
 export type ServerMessage =
@@ -29,4 +31,6 @@ export type ServerMessage =
   | { type: "player_join"; player: Player }
   | { type: "player_move"; id: string; x: number; y: number; direction: Player["direction"] }
   | { type: "player_leave"; id: string }
-  | { type: "chat"; message: ChatMessage };
+  | { type: "chat"; message: ChatMessage }
+  | { type: "player_vent"; id: string; fromX: number; fromY: number; toX: number; toY: number }
+  | { type: "player_jump"; id: string };

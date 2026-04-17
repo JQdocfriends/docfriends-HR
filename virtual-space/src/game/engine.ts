@@ -2,9 +2,9 @@ import { Camera } from "./camera";
 import { InputManager } from "./input";
 import { Renderer } from "./renderer";
 import { PlayerEntity } from "./player";
-import { isWalkable } from "./map";
+import { isWalkable, isVent, getVentPositions } from "./map";
 import type { ServerMessage, ChatMessage } from "@/types";
-import { WS_URL, PROXIMITY_RADIUS } from "@/lib/constants";
+import { WS_URL, PROXIMITY_RADIUS, SCALED_TILE } from "@/lib/constants";
 
 export type EngineEvents = {
   onPlayersUpdate: (players: PlayerEntity[]) => void;
@@ -25,6 +25,7 @@ export class GameEngine {
   private animFrameId: number | null = null;
   private events: EngineEvents;
   private moveCooldown = 0;
+  private lastFrameMs: number | null = null;
 
   constructor(canvas: HTMLCanvasElement, events: EngineEvents) {
     this.canvas = canvas;
@@ -44,7 +45,7 @@ export class GameEngine {
     };
 
     this.ws.onmessage = (event) => {
-      const msg: ServerMessage & { selfPlayer?: any } = JSON.parse(event.data);
+      const msg: ServerMessage & { selfPlayer?: { id: string; name: string; avatar: number; x: number; y: number } } = JSON.parse(event.data);
       this.handleServerMessage(msg);
     };
 
@@ -55,10 +56,10 @@ export class GameEngine {
     this.startLoop();
   }
 
-  private handleServerMessage(msg: ServerMessage & { selfPlayer?: any }) {
+  private handleServerMessage(msg: ServerMessage & { selfPlayer?: { id: string; name: string; avatar: number; x: number; y: number } }) {
     switch (msg.type) {
       case "init": {
-        const sp = (msg as any).selfPlayer;
+        const sp = msg.selfPlayer!;
         this.localPlayer = new PlayerEntity(msg.id, sp.name, sp.avatar, sp.x, sp.y);
         for (const p of msg.players) {
           this.remotePlayers.set(p.id, new PlayerEntity(p.id, p.name, p.avatar, p.x, p.y));
@@ -74,7 +75,7 @@ export class GameEngine {
       }
       case "player_move": {
         const remote = this.remotePlayers.get(msg.id);
-        if (remote) {
+        if (remote && !remote.isVenting) {
           remote.moveTo(msg.x, msg.y, msg.direction);
         }
         break;
@@ -86,7 +87,6 @@ export class GameEngine {
       }
       case "chat": {
         const chatMsg = msg.message;
-        // Show bubble on the player
         if (chatMsg.fromId === this.localPlayer?.id) {
           this.localPlayer?.showChat(chatMsg.text);
         } else {
@@ -94,6 +94,29 @@ export class GameEngine {
           remote?.showChat(chatMsg.text);
         }
         this.events.onChatMessage(chatMsg);
+        break;
+      }
+      case "player_vent": {
+        if (this.localPlayer && msg.id === this.localPlayer.id) {
+          // Local started optimistically; patch target coordinates now.
+          if (this.localPlayer.isVenting) {
+            this.localPlayer.setVentTarget(msg.toX, msg.toY);
+          } else {
+            this.localPlayer.startVent(msg.fromX, msg.fromY, msg.toX, msg.toY);
+          }
+        } else {
+          const remote = this.remotePlayers.get(msg.id);
+          remote?.startVent(msg.fromX, msg.fromY, msg.toX, msg.toY);
+        }
+        break;
+      }
+      case "player_jump": {
+        if (this.localPlayer && msg.id === this.localPlayer.id) {
+          // Echo from server — already started locally; ignore.
+          break;
+        }
+        const remote = this.remotePlayers.get(msg.id);
+        remote?.startJump();
         break;
       }
     }
@@ -114,17 +137,59 @@ export class GameEngine {
   }
 
   private startLoop() {
-    const loop = () => {
-      this.update();
+    const loop = (ts: number) => {
+      const dt = this.lastFrameMs == null ? 16 : ts - this.lastFrameMs;
+      this.lastFrameMs = ts;
+      this.update(dt);
       this.render();
       this.animFrameId = requestAnimationFrame(loop);
     };
     this.animFrameId = requestAnimationFrame(loop);
   }
 
-  private update() {
-    // Handle local player movement
-    if (this.localPlayer && this.moveCooldown <= 0) {
+  private handleSpacePress() {
+    if (!this.localPlayer) return;
+    if (this.localPlayer.isVenting) return;
+
+    const px = this.localPlayer.x;
+    const py = this.localPlayer.y;
+    const onVent = isVent(px, py);
+
+    if (onVent && !this.localPlayer.isMoving) {
+      const others = getVentPositions().filter(
+        (v) => !(v.x === px && v.y === py)
+      );
+      if (others.length > 0) {
+        // Optimistic local start with placeholder target (same as origin);
+        // server patches the real target via `player_vent` before the
+        // 400ms entering phase completes.
+        this.localPlayer.startVent(px, py, px, py);
+        this.ws?.send(JSON.stringify({ type: "vent", fromX: px, fromY: py }));
+        return;
+      }
+    }
+
+    // Not on a vent (or only vent) → jump in place.
+    this.localPlayer.startJump();
+    this.ws?.send(JSON.stringify({ type: "jump" }));
+  }
+
+  private update(dtMs: number) {
+    // Advance vent + jump timers for all players first
+    if (this.localPlayer?.isVenting) this.localPlayer.tickVent(dtMs);
+    if (this.localPlayer?.isJumping) this.localPlayer.tickJump(dtMs);
+    for (const p of this.remotePlayers.values()) {
+      if (p.isVenting) p.tickVent(dtMs);
+      if (p.isJumping) p.tickJump(dtMs);
+    }
+
+    // Space: vent if on vent tile, otherwise jump in place
+    if (this.input.consumeSpacePress()) {
+      this.handleSpacePress();
+    }
+
+    // Handle local movement (suppressed during vent)
+    if (this.localPlayer && !this.localPlayer.isVenting && this.moveCooldown <= 0) {
       const dir = this.input.getDirection();
       if (dir && !this.localPlayer.isMoving) {
         const newX = this.localPlayer.x + dir.dx;
@@ -137,7 +202,7 @@ export class GameEngine {
             y: newY,
             direction: dir.direction,
           }));
-          this.moveCooldown = 8; // prevent too fast movement
+          this.moveCooldown = 8;
         } else {
           this.localPlayer.direction = dir.direction;
         }
@@ -145,7 +210,7 @@ export class GameEngine {
     }
     if (this.moveCooldown > 0) this.moveCooldown--;
 
-    // Update all players (smooth movement)
+    // Smooth movement + chat timers
     this.localPlayer?.update();
     for (const p of this.remotePlayers.values()) {
       p.update();
@@ -156,7 +221,7 @@ export class GameEngine {
       this.camera.follow(this.localPlayer.x, this.localPlayer.y);
     }
 
-    // Update nearby players
+    // Proximity
     if (this.localPlayer) {
       const nearbyIds: string[] = [];
       for (const p of this.remotePlayers.values()) {
@@ -170,15 +235,36 @@ export class GameEngine {
   }
 
   private render() {
+    this.renderer.tick();
     this.renderer.clear();
-    this.renderer.drawMap(this.camera);
 
-    // Draw remote players
+    // Compute active vent glows from currently venting players
+    const ventGlows = new Map<string, number>();
+    const markGlow = (x: number, y: number, intensity: number) => {
+      const key = `${x},${y}`;
+      ventGlows.set(key, Math.max(ventGlows.get(key) ?? 0, intensity));
+    };
+    const markPlayerGlow = (p: PlayerEntity) => {
+      if (p.ventPhase === "entering") {
+        markGlow(p.ventFromX, p.ventFromY, p.ventProgress);
+      } else if (p.ventPhase === "hidden") {
+        markGlow(p.ventFromX, p.ventFromY, 1);
+        markGlow(p.ventToX, p.ventToY, 1);
+      } else if (p.ventPhase === "exiting") {
+        markGlow(p.ventToX, p.ventToY, 1 - p.ventProgress);
+      }
+    };
+    if (this.localPlayer?.isVenting) markPlayerGlow(this.localPlayer);
+    for (const p of this.remotePlayers.values()) {
+      if (p.isVenting) markPlayerGlow(p);
+    }
+
+    this.renderer.drawMap(this.camera, ventGlows);
+
     for (const p of this.remotePlayers.values()) {
       this.renderer.drawPlayer(p, this.camera, false);
     }
 
-    // Draw local player on top
     if (this.localPlayer) {
       this.renderer.drawPlayer(this.localPlayer, this.camera, true);
     }
@@ -194,6 +280,14 @@ export class GameEngine {
     this.input.enabled = enabled;
   }
 
+  getLocalPlayerScreenPos(): { x: number; y: number } | null {
+    if (!this.localPlayer) return null;
+    return {
+      x: this.localPlayer.pixelX - this.camera.x + SCALED_TILE / 2,
+      y: this.localPlayer.pixelY - this.camera.y,
+    };
+  }
+
   resize(width: number, height: number) {
     this.canvas.width = width;
     this.canvas.height = height;
@@ -204,6 +298,7 @@ export class GameEngine {
     if (this.animFrameId) {
       cancelAnimationFrame(this.animFrameId);
     }
+    this.input.destroy();
     this.ws?.close();
   }
 }

@@ -1,5 +1,6 @@
 import { WebSocketServer, WebSocket } from "ws";
 import type { Server } from "http";
+import { VENT_POSITIONS, isVentCoord } from "../src/lib/vents";
 
 interface Player {
   id: string;
@@ -56,8 +57,11 @@ export function setupWebSocket(server: Server) {
       switch (msg.type) {
         case "join": {
           playerId = generateId();
-          const spawnX = 5 + Math.floor(Math.random() * 20);
-          const spawnY = 5 + Math.floor(Math.random() * 10);
+          // Spawn near path intersection (center of map) with slight offset
+          const offsets = [[-1,-1],[-1,1],[1,-1],[1,1],[0,2],[2,0],[-2,0],[0,-2]];
+          const offset = offsets[players.size % offsets.length];
+          const spawnX = 15 + (offset?.[0] ?? 0);
+          const spawnY = 10 + (offset?.[1] ?? 0);
           const player: Player = {
             id: playerId,
             name: msg.name || "Anonymous",
@@ -135,6 +139,38 @@ export function setupWebSocket(server: Server) {
               sendTo(other.ws, chatMsg);
             }
           }
+          break;
+        }
+
+        case "vent": {
+          if (!playerId) return;
+          const p = players.get(playerId);
+          if (!p) return;
+          if (p.x !== msg.fromX || p.y !== msg.fromY) return;
+          if (!isVentCoord(p.x, p.y)) return;
+          const candidates = VENT_POSITIONS.filter(
+            (v) => !(v.x === p.x && v.y === p.y)
+          );
+          if (candidates.length === 0) return;
+          const target = candidates[Math.floor(Math.random() * candidates.length)];
+          p.x = target.x;
+          p.y = target.y;
+          broadcast({
+            type: "player_vent",
+            id: playerId,
+            fromX: msg.fromX,
+            fromY: msg.fromY,
+            toX: target.x,
+            toY: target.y,
+          });
+          console.log(`${p.name} vented (${msg.fromX},${msg.fromY}) → (${target.x},${target.y})`);
+          break;
+        }
+
+        case "jump": {
+          if (!playerId) return;
+          // Broadcast to everyone except the sender (sender already started locally).
+          broadcast({ type: "player_jump", id: playerId }, playerId);
           break;
         }
       }
