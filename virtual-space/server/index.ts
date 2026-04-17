@@ -11,7 +11,7 @@ app.get("/health", (_req, res) => {
 
 setupWebSocket(server);
 
-const PORT = 3001;
-server.listen(PORT, () => {
+const PORT = Number(process.env.PORT) || 3001;
+server.listen(PORT, "0.0.0.0", () => {
   console.log(`WebSocket server running on port ${PORT}`);
 });

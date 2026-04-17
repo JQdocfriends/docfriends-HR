@@ -1,0 +1,6 @@
+# Server-only files — not needed by Vercel's Next.js build
+server
+Dockerfile
+fly.toml
+.dockerignore
+DEPLOY.md

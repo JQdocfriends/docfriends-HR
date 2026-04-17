@@ -1,0 +1,25 @@
+node_modules
+.next
+.omc
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+.vscode
+.idea
+.DS_Store
+*.log
+README.md
+DEPLOY.md
+# Next.js-only assets not needed by the WebSocket server
+src/app
+src/components
+src/game
+src/middleware.ts
+public
+next.config.ts
+next-env.d.ts
+postcss.config.mjs
+tailwind.config.*
+eslint.config.*
